@@ -8,7 +8,8 @@ from django.conf import settings
 import os
 
 
-config_file_path = os.path.join(settings.BASE_DIR, 'core','monitoring.ini')
+config_file_path = os.path.join(settings.BASE_DIR, 'core')
+plugins_path = os.path.join(config_file_path, 'plugins')
 
 output = {}
 output['system_info'] = {        
@@ -25,7 +26,7 @@ output['system_info'] = {
 
 
 config = ConfigParser.ConfigParser()
-config.read(config_file_path)
+config.read(os.path.join(config_file_path,'monitoring.ini'))
 queue = Queue.Queue()
 
 def get_cmd(params):
@@ -36,8 +37,8 @@ def Command_runner(queue):
            
     while True:
         cmd_name, cmd_params = queue.get()
-        cmd = get_cmd(cmd_params)    
-        command = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        cmd = get_cmd(cmd_params)
+        command = subprocess.Popen('cd %s;%s'%(plugins_path,cmd), shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         out, err = command.communicate()
         output[cmd_name] = {}
         for item in cmd_params:

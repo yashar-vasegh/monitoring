@@ -8,7 +8,12 @@ https://docs.djangoproject.com/en/1.6/howto/deployment/wsgi/
 """
 
 import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "monitoring.settings")
+import sys
+os.environ["DJANGO_SETTINGS_MODULE"] = "monitoring.settings"
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.append(BASE_DIR)
 
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
