@@ -3,6 +3,4 @@ import query_ini
 
 def get_system(request):
     result = query_ini.main()
-    print '---------------------------'
-    print result
     return HttpResponse(str(result))
