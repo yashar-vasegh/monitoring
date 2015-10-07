@@ -29,22 +29,27 @@ config = ConfigParser.ConfigParser()
 config.read(os.path.join(config_file_path,'monitoring.ini'))
 queue = Queue.Queue()
 
-def get_cmd(params):
+def get_cmds(params):
+    commands = []
     for item in params:
-        if item[0] == 'cmd': return item[1]
+        if item[0].startswith('cmd_'): commands.append((item[0][4:],item[1]))
+    return commands
 
 def Command_runner(queue):
            
     while True:
-        cmd_name, cmd_params = queue.get()
-        cmd = get_cmd(cmd_params)
-        command = subprocess.Popen('cd %s;%s'%(plugins_path,cmd), shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        out, err = command.communicate()
-        output[cmd_name] = {}
+        section_name, cmd_params = queue.get()
+        output[section_name] = {}        
+        cmds = get_cmds(cmd_params)
+        for cmd in cmds:
+            cmd_name, cmd_rule = cmd
+            command = subprocess.Popen('cd %s;%s'%(plugins_path,cmd_rule), shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            out, err = command.communicate()
+            output[section_name][cmd_name] = out 
         for item in cmd_params:
-            if item[0] != 'cmd' : output[cmd_name][item[0]]=item[1]
-        output[cmd_name]['result'] = out
-        queue.task_done()    
+            item_name, item_value = item
+            if not item[0].startswith('cmd_') : output[section_name][item_name]=item_value        
+        queue.task_done()
 
 
 def fill_queue():
