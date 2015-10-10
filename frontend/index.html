@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Yara node monitoring dashboard</title>
+	<!-- Latest compiled and minified CSS -->
+	<link rel="stylesheet" href="css/bootstrap.min.css">
+	  <!--https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css-->
+
+	<!-- Optional theme -->
+	<link rel="stylesheet" href="css/bootstrap-theme.min.css">
+	
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="js/html5shiv.min.js"></script>
+      <script src="js/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="js/jquery.min.js"></script>
+	<script src="highchart/js/highcharts.js"></script>
+	<script src="highchart/js/highcharts-more.js"></script>
+	<script src="highchart/js/modules/solid-gauge.js"></script>
+	<script src="Gauges2D/src/jquery.gauge.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="js/bootstrap.min.js"></script>
+
+  <body onload="fill_page();">
+    <h3>Yara node monitoring dashboard</h3>
+	<div class="dropdown">
+		<button id="submitText" class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">select interval
+			<span class="caret"></span></button>
+		<ul id="time_job" class="dropdown-menu">
+			<li><a href="#">10 s</a></li>
+			<li><a href="#">30 s</a></li>
+			<li><a href="#">1 min</a></li>
+			<li><a href="#">5 min</a></li>
+		</ul>
+	</div>
+	<br/>
+	<ul class="nav nav-tabs" id='nodes_tab'>
+		<li role="presentation" class="active"><a href="#">Home</a></li>
+	</ul>
+
+	<div id='node_data'>
+		<div id='node_graph' class="col-xs-12"></div>
+		<div id='node_text' class="col-xs-12"></div>
+	</div>
+	
+	<script>
+		var current_node=null;
+		var nodes=[{name:'Irancell', url:'http://10.133.104.24/monitoring/1X234U567/?'},{name:'local', url:'http://localhost:8001/1234567'}]
+		var timer;
+		var ajax_calls = [];
+		set_timer(30000);
+
+		$("#time_job li a").click(function(){
+			var selText = $(this).text();
+			if (selText=='10 s'){ set_timer(10000);	}
+			else if(selText=='30 s'){ set_timer(30000);	}
+			else if(selText=='1 min'){ set_timer(60000); }
+			else if(selText=='5 min') { set_timer(300000); }
+			$(this).parents('.dropdown').find('#submitText').html(selText+' <span class="caret"></span>');
+		});
+
+
+		$.xhrPool = []; // array of uncompleted requests
+	    $.xhrPool.abortAll = function() { // our abort function
+	        $(this).each(function(idx, jqXHR) { 
+	            jqXHR.abort();
+	        });
+	        $.xhrPool.length = 0
+	    };
+	     
+	    $.ajaxSetup({
+	        beforeSend: function(jqXHR) { // before jQuery send the request we will push it to our array
+	            $.xhrPool.push(jqXHR);
+	        },
+	        complete: function(jqXHR) { // when some of the requests completed it will splice from the array
+	            var index = $.xhrPool.indexOf(jqXHR);
+	            if (index > -1) {
+	                $.xhrPool.splice(index, 1);
+	            }
+	        }
+	    });
+
+
+
+    var gaugeOptions = {
+
+        chart: {
+            type: 'solidgauge'
+        },
+
+        title: null,
+
+        pane: {
+            center: ['50%', '85%'],
+            size: '140%',
+            startAngle: -90,
+            endAngle: 90,
+            background: {
+                backgroundColor: (Highcharts.theme && Highcharts.theme.background2) || '#EEE',
+                innerRadius: '60%',
+                outerRadius: '100%',
+                shape: 'arc'
+            }
+        },
+
+        tooltip: {
+            enabled: false
+        },
+
+        // the value axis
+        yAxis: {
+            stops: [
+                [0.1, '#55BF3B'], // green
+                [0.5, '#DDDF0D'], // yellow
+                [0.9, '#DF5353'] // red
+            ],
+            lineWidth: 0,
+            minorTickInterval: null,
+            tickPixelInterval: 400,
+            tickWidth: 0,
+            title: {
+                y: -70
+            },
+            labels: {
+                y: 16
+            }
+        },
+
+        plotOptions: {
+            solidgauge: {
+                dataLabels: {
+                    y: 5,
+                    borderWidth: 0,
+                    useHTML: true
+                }
+            }
+        }
+    };
+
+		for (var node in nodes){ localStorage.setItem(nodes[node].name , ""); }
+		
+		function find_node_url(name){
+			for (var item in nodes){
+				if (nodes[item].name==name) return nodes[item].url;
+			}
+		}
+
+
+		function fill_nav_bar(){
+			var nodes_tab = $('#nodes_tab');
+			for (var item in nodes){
+				$(nodes_tab).append("<li role=\"presentation\"><a href=\"#\">"+ nodes[item].name +"</a></li>" );
+			}
+
+			$('#nodes_tab a').click(function (e) {
+				  if (current_node == $(this)[0].innerHTML) return false
+				  $.xhrPool.abortAll();
+				  var tab_text = $(this)[0].innerHTML;
+				  e.preventDefault();
+				  $(this).tab('show');			
+				  if ( tab_text == 'Home') $("#node_data").text("testingggg....");
+				  else get_node_data(tab_text);
+			});
+		}
+
+		function set_node_data(data){
+			localStorage.setItem(current_node, JSON.stringify(data));
+		}		
+
+		
+		function visual_node_data(current_node){
+			var data = localStorage.getItem(current_node);
+			data = JSON.parse(data);
+			for (var item in data){
+				if (data[item].hasOwnProperty('graph_type')){
+					var graph_type = data[item].graph_type;
+					var get_obj = $("div[id^="+current_node+"_"+item+"]");
+					if (graph_type == 'gauge'){						
+						if (get_obj.length){
+							var chart = get_obj[0];
+							$(chart).highcharts().series[0].points[0].update(parseInt(data[item].used));
+						}
+						else create_gauge_modern(item, 0, data[item].total, data[item].used, data[item].unit);
+					}
+					else if (graph_type == 'text'){
+						if (get_obj.length){
+							var textbox = get_obj[0];
+							set_textbox_text(textbox, item, data[item].result);
+						}
+						else {create_textbox(item,data[item].result);}
+					}
+				}
+			}
+		}
+
+
+		function fill_node_data(data){
+			set_node_data(data);
+			visual_node_data(current_node);
+			//$("#node_data").text(JSON.stringify(data));
+		}
+
+		function clear_node_data(){
+			$("#node_data").html("<div id='node_graph' class='col-xs-12'></div><div id='node_text' class='col-xs-12'></div>");
+		}
+
+		function get_node_data(tab_text){			
+			if (current_node != tab_text){
+				clear_node_data();
+				current_node = tab_text;
+			}
+			if (current_node == null) return false
+			var url = find_node_url(tab_text);
+			$.ajax({
+			  dataType: "json",
+			  url: url,
+			  crossDomain:true,
+			  timeout: 4500,
+			  success: fill_node_data,
+			  fail: clear_node_data
+			});
+		}
+
+
+		function fill_page(){
+			fill_nav_bar();			
+			// create_gauge(0,0);
+		}
+
+
+		function guid() {
+			  function s4() {
+				return Math.floor((1 + Math.random()) * 0x10000)
+				  .toString(16)
+				  .substring(1);
+			  }
+			  return s4() + '-' + s4() + '-' + s4() + '-' +
+				s4() + '-' + s4() + s4() + s4();
+		}
+
+
+		function create_gauge_simple(title, min_value, max_value,used,unit){
+			var UUID = current_node + '_' + guid();
+			$("#node_data").append($('<div style="display:block;float:left;" id="div_'+UUID+'"><b>' +title+ '</b></div>'));
+			var DOM_node = $('<canvas id="'+UUID+'" width="200" height="200">');
+			$("#div_"+UUID).append(DOM_node);
+			DOM_node.gauge(used, {
+			min_value: 0,
+			max_value: 100,
+			unit: "%",
+			color: "blue",
+			colorAlpha: 1,
+			bgcolor: "#222",
+			type: "default"
+			});
+		}
+
+		function set_textbox_text(obj, title, result){
+			$(obj).html('<b>' + title + '</b>' + ':' + result );
+		}
+
+		function create_textbox(title, result){
+			var UUID = current_node + '_' + title + '_' + guid();
+			var obj = $('<div class="alert alert-info" id="' + UUID + '"></div>');
+			set_textbox_text(obj, title, result);
+			$("#node_text").append(obj);
+		}
+
+		function create_gauge_modern(title, min_value, max_value, used, unit){
+			var UUID = current_node + '_' + title + '_' + guid();
+			$("#node_graph").append($('<div style="display:block;float:left;" id="div_'+UUID+'"></div>'));
+			var DOM_node = $('<div id="'+UUID+'" style="width: 300px; height: 200px; float: left"></div>');
+			$("#div_"+UUID).append(DOM_node);
+			$(DOM_node).highcharts(Highcharts.merge(gaugeOptions, {
+		        yAxis: {
+		            min: parseInt(min_value),
+		            max: parseInt(max_value),
+		            title: {
+		                text: title
+		            }
+		        },
+
+		        credits: {
+		            enabled: false
+		        },
+
+		        series: [{
+		            name: title,
+		            data: [parseInt(used)],
+		            dataLabels: {
+		                format: '<div style="text-align:center"><span style="font-size:25px;color:' +
+		                    ((Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black') + '">{y:.1f}</span><br/>' +
+		                       '<span style="font-size:12px;color:silver">'+ unit +'</span></div>'
+		            },
+		            tooltip: {
+		                valueSuffix: unit
+		            }
+		        }]
+
+		    }));
+		}
+
+		function set_timer(timer_time){			
+			try{
+				clearInterval(timer);
+			}
+			catch(err){}
+			finally{	
+				timer = setInterval(function(){ get_node_data(current_node); }, timer_time);			
+			}
+		}
+
+	</script>
+
+
+
+
+  </body>
+</html>
