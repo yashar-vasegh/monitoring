@@ -1,6 +1,7 @@
 from django.conf.urls import patterns, url
+from django.conf import settings
 import core
 
 urlpatterns = patterns('',
-    url(r'', 'core.views.get_system'),
+    url(settings.SECRET_URL, 'core.views.get_system'),
 )
