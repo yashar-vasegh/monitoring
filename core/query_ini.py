@@ -6,12 +6,14 @@ import subprocess
 import Queue
 from django.conf import settings
 import os
+import collections
 
 
 config_file_path = os.path.join(settings.BASE_DIR, 'core')
 plugins_path = os.path.join(config_file_path, 'plugins')
 
-output = {}
+output = collections.OrderedDict()
+
 output['system_info'] = {        
     'architecture': platform.architecture(),
     'dist': platform.dist(),

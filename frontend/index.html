@@ -8,6 +8,7 @@
     <title>Yara node monitoring dashboard</title>
 	<!-- Latest compiled and minified CSS -->
 	<link rel="stylesheet" href="css/bootstrap.min.css">
+	<link rel="stylesheet" href="css/blue/style.css">
 	  <!--https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css-->
 
 	<!-- Optional theme -->
@@ -29,6 +30,8 @@
 	<script src="Gauges2D/src/jquery.gauge.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="js/bootstrap.min.js"></script>
+    <script src="js/jquery.tablesorter.min.js"></script>
+    
 
   <body onload="fill_page();">
     <h3>Yara node monitoring dashboard</h3>
@@ -200,6 +203,10 @@
 					}
 				}
 			}
+			$(".tablesorter").each( function( i, el ) {
+                var elem = $( el );
+                elem.tablesorter();
+            });
 		}
 
 
@@ -232,8 +239,7 @@
 
 
 		function fill_page(){
-			fill_nav_bar();			
-			// create_gauge(0,0);
+			fill_nav_bar();
 		}
 
 
